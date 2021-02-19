@@ -1,40 +1,42 @@
-<?php 
+<?php
+
 namespace Concrete\Package\RestrictLogin;
 
-use Concrete\Package\RestrictLogin\Src\RestrictLogin\RestrictLogin;
-use Events;
-use Package;
-use Page;
-use SinglePage;
+use A3020\RestrictLogin\OnLoginListener;
+use Concrete\Core\Package\Package;
+use Concrete\Core\Page\Page;
+use Concrete\Core\Page\Single;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 class Controller extends Package
 {
     protected $pkgHandle = 'restrict_login';
-    protected $appVersionRequired = '5.7.4';
-    protected $pkgVersion = '1.0';
-
-    protected $single_pages = array(
-        '/dashboard/system/registration/restrict_login' => array(
-            'cName' => 'Restrict Login',
-        ),
-    );
+    protected $appVersionRequired = '8.5.0';
+    protected $pkgVersion = '2.0.0';
+    protected $pkgAutoloaderRegistries = [
+        'src/RestrictLogin' => '\A3020\RestrictLogin',
+    ];
 
     public function getPackageName()
     {
-        return t("Restrict Login");
+        return t('Restrict Login');
     }
 
     public function getPackageDescription()
     {
-        return t("Only allow login from certain IP addresses.");
+        return t('Only allow login from certain IP addresses.');
     }
 
     public function on_start()
     {
+        /** @var EventDispatcherInterface $dispatcher */
+        $dispatcher = $this->app->make(EventDispatcherInterface::class);
+
         // Triggered in /concrete/controllers/single_page/login.php
-        Events::addListener('on_user_login', function($eu) {
-            $rl = new RestrictLogin();
-            $rl->onUserLogin($eu);
+        $dispatcher->addListener('on_user_login', function($event) {
+            /** @var \A3020\RestrictLogin\OnLoginListener $listener */
+            $listener = $this->app->make(OnLoginListener::class);
+            $listener->onLogin($event);
         });
     }
 
@@ -42,22 +44,18 @@ class Controller extends Package
     {
         $pkg = parent::install();
 
-        $this->installPages($pkg);
-    }
-
-    /**
-     * @param Package $pkg
-     */
-    protected function installPages($pkg)
-    {
-        foreach ($this->single_pages as $path => $value) {
+        foreach ([
+            '/dashboard/system/registration/restrict_login' => [
+                'cName' => 'Restrict Login',
+            ],
+        ] as $path => $value) {
             if (!is_array($value)) {
                 $path = $value;
                 $value = array();
             }
             $page = Page::getByPath($path);
             if (!$page || $page->isError()) {
-                $single_page = SinglePage::add($path, $pkg);
+                $single_page = Single::add($path, $pkg);
 
                 if ($value) {
                     $single_page->update($value);

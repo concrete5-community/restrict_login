@@ -1,34 +1,48 @@
-<?php 
-namespace Concrete\Package\RestrictLogin\Src\RestrictLogin;
+<?php
 
+namespace A3020\RestrictLogin;
+
+use Concrete\Core\Application\ApplicationAwareInterface;
+use Concrete\Core\Application\ApplicationAwareTrait;
+use Concrete\Core\Config\Repository\Repository;
+use Concrete\Core\Routing\Redirect;
 use Concrete\Core\Utility\IPAddress;
-use Config;
-use Core;
-use Redirect;
 use Symfony\Component\HttpFoundation\IpUtils;
 
-class RestrictLogin
+class OnLoginListener implements ApplicationAwareInterface
 {
+    use ApplicationAwareTrait;
+
+    /**
+     * @var \Concrete\Core\Config\Repository\Repository
+     */
+    private $config;
+
+    public function __construct(Repository $config)
+    {
+        $this->config = $config;
+    }
+
     /**
      * Log out the user if the IP isn't allowed.
      *
-     * @param \Concrete\Core\User\Event\User $eu
+     * @param \Concrete\Core\User\Event\User $event
      *
-     * @return bool
+     * @return null
      */
-    public function onUserLogin($eu)
+    public function onLogin($event)
     {
         $user_ip = $this->getUserIP();
         $ips = $this->getAllowedIPs();
 
-        // Stop processing, no IP address has been added yet.
+        // No IP address has been added yet, allow login from anywhere.
         if (count($ips) === 0) {
-            return false;
+            return;
         }
 
         // Check if user's IP is allowed
         if (!$this->checkIP($user_ip, $ips)) {
-            $u = $eu->getUserObject();
+            $u = $event->getUserObject();
 
             $u->logout();
 
@@ -44,7 +58,7 @@ class RestrictLogin
      *
      * @return bool
      */
-    public function checkIP($user_ip, $ips)
+    private function checkIP($user_ip, $ips)
     {
         return IpUtils::checkIp($user_ip, $ips);
     }
@@ -54,9 +68,9 @@ class RestrictLogin
      *
      * @return array
      */
-    public function getAllowedIPs()
+    private function getAllowedIPs()
     {
-        $ips_config = Config::get('restrict_login.ips');
+        $ips_config = $this->config->get('restrict_login.ips');
 
         return !is_array($ips_config) ? array() : array_keys($ips_config);
     }
@@ -64,11 +78,11 @@ class RestrictLogin
     /**
      * Return the user's IP address.
      *
-     * return string
+     * @return string
      */
-    public function getUserIP()
+    private function getUserIP()
     {
-        $iph = Core::make('helper/validation/ip');
+        $iph = $this->app->make('helper/validation/ip');
         $ip = $iph->getRequestIP();
 
         return $ip->getIP(IPAddress::FORMAT_IP_STRING);

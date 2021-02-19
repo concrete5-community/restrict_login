@@ -1,23 +1,23 @@
 <?php  
 namespace Concrete\Package\RestrictLogin\Controller\SinglePage\Dashboard\System\Registration;
 
+use Concrete\Core\Config\Repository\Repository;
+use Concrete\Core\Http\Request;
+use Concrete\Core\Http\Response;
 use Concrete\Core\Page\Controller\DashboardPageController;
 use Concrete\Core\Utility\IPAddress;
-use Config;
-use Core;
+use Concrete\Core\View\View;
 use Exception;
-use Request;
-use Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use View;
 
 class RestrictLogin extends DashboardPageController
 {
     public function view()
     {
-        $ips = Config::get('restrict_login.ips', array());
+        /** @var Repository $config */
+        $config = $this->app->make(Repository::class);
 
-        $this->set('ips', $ips);
+        $this->set('ips', $config->get('restrict_login.ips', []));
     }
 
     /**
@@ -25,14 +25,17 @@ class RestrictLogin extends DashboardPageController
      */
     public function modify_dialog()
     {
-        $req = Request::getInstance();
+        /** @var Repository $config */
+        $config = $this->app->make(Repository::class);
+
+        $req = $this->app->make(Request::class);
         $iph = $this->app->make('helper/validation/ip');
         $ip = $iph->getRequestIP();
 
-        $entry = array(
+        $entry = [
             'old_ip' => null,
             'description' => null,
-        );
+        ];
 
         $view = new View('modify_ip_dialog');
         $view->addScopeItems(array(
@@ -43,7 +46,7 @@ class RestrictLogin extends DashboardPageController
 
         if (!empty($req->post('ip'))) {
             $ip = $req->post('ip');
-            $ips = Config::get('restrict_login.ips', array());
+            $ips = $config->get('restrict_login.ips', []);
             if (isset($ips[$ip])) {
                 $entry = $ips[$ip];
                 $entry['old_ip'] = $ip;
@@ -56,7 +59,7 @@ class RestrictLogin extends DashboardPageController
         $response = new Response($view->render());
         $response->send();
 
-        Core::shutdown();
+        $this->app->shutdown();
     }
 
     /**
@@ -64,10 +67,13 @@ class RestrictLogin extends DashboardPageController
      */
     public function modify()
     {
-        $json = array('error' => null, 'message' => null);
+        /** @var Repository $config */
+        $config = $this->app->make(Repository::class);
+
+        $json = ['error' => null, 'message' => null];
         $req = Request::getInstance();
-        $ips = Config::get('restrict_login.ips');
-        $sec = Core::make('helper/security');
+        $ips = $config->get('restrict_login.ips');
+        $sec = $this->app->make('helper/security');
 
         try {
             $token = trim($req->get('token'));
@@ -102,7 +108,7 @@ class RestrictLogin extends DashboardPageController
                 }
             }
 
-            Config::save('restrict_login.ips', $ips);
+            $config->save('restrict_login.ips', $ips);
         } catch (Exception $e) {
             $json['error'] = true;
             $json['message'] = $e->getMessage();
@@ -111,7 +117,7 @@ class RestrictLogin extends DashboardPageController
         $response = new JsonResponse($json);
         $response->send();
 
-        Core::shutdown();
+        $this->app->shutdown();
     }
 
     public function add_success()
@@ -131,6 +137,9 @@ class RestrictLogin extends DashboardPageController
      */
     public function delete()
     {
+        /** @var Repository $config */
+        $config = $this->app->make(Repository::class);
+
         $json = array('error' => null, 'message' => null);
         $req = Request::getInstance();
 
@@ -138,12 +147,12 @@ class RestrictLogin extends DashboardPageController
         $ip = trim($req->get('ip'));
         if ($this->token->validate("restrict_login::modify.{$ip}", $token)) {
             if ($ip) {
-                $ips = Config::get('restrict_login.ips');
+                $ips = $config->get('restrict_login.ips');
 
                 if (isset($ips[$ip])) {
                     unset($ips[$ip]);
 
-                    Config::save('restrict_login.ips', $ips);
+                    $config->save('restrict_login.ips', $ips);
                 }
             } else {
                 $json['error'] = true;
@@ -157,7 +166,7 @@ class RestrictLogin extends DashboardPageController
         $response = new JsonResponse($json);
         $response->send();
 
-        Core::shutdown();
+        $this->app->shutdown();
     }
 
     public function delete_success()
