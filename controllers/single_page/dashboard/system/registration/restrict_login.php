@@ -25,6 +25,7 @@ class RestrictLogin extends DashboardPageController
      */
     public function modify_dialog()
     {
+        $req = Request::getInstance();
         $iph = $this->app->make('helper/validation/ip');
         $ip = $iph->getRequestIP();
 
@@ -40,8 +41,8 @@ class RestrictLogin extends DashboardPageController
         ));
         $view->setPackageHandle('restrict_login');
 
-        if (isset($_POST['ip'])) {
-            $ip = $_POST['ip'];
+        if (!empty($req->post('ip'))) {
+            $ip = $req->post('ip');
             $ips = Config::get('restrict_login.ips', array());
             if (isset($ips[$ip])) {
                 $entry = $ips[$ip];
@@ -90,7 +91,7 @@ class RestrictLogin extends DashboardPageController
             $description = $sec->sanitizeString($req->get('description'));
 
             $ips[$ip] = array(
-                'description' => $description
+                'description' => $description,
             );
 
             // If IP has changed in modify dialog, delete the old entry.

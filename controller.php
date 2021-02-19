@@ -11,7 +11,7 @@ class Controller extends Package
 {
     protected $pkgHandle = 'restrict_login';
     protected $appVersionRequired = '5.7.4';
-    protected $pkgVersion = '0.9.4';
+    protected $pkgVersion = '1.0';
 
     protected $single_pages = array(
         '/dashboard/system/registration/restrict_login' => array(
